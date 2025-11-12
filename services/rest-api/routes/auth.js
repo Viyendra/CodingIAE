@@ -42,16 +42,20 @@ if (!global.users) {
 const privateKey = fs.readFileSync(path.join(__dirname, '../private.key'), 'utf8');
 
 // POST /api/auth/register - Registrasi user baru
+// POST /api/auth/register - Registrasi user baru
 router.post('/register', validateUser, async (req, res) => {
-  // 'validateUser' sudah kita update di langkah 3
-  const { name, email, age, password, role = 'user' } = req.body; 
+  const { name, email, age, password } = req.body; //
 
-  // Cek jika email sudah ada
   if (global.users.find(u => u.email === email)) {
     return res.status(409).json({ error: 'Email already exists' });
   }
 
-  // Hash password
+  // === LOGIKA ROLE BARU ===
+  // Cek apakah sudah ada admin di database 'global.users'
+  const hasAdmin = global.users.some(u => u.role === 'admin');
+  const role = hasAdmin ? 'user' : 'admin'; // Jika belum ada admin, jadikan 'admin'. Jika sudah, jadikan 'user'.
+  // =========================
+
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
@@ -60,9 +64,9 @@ router.post('/register', validateUser, async (req, res) => {
     name,
     email,
     age,
-    passwordHash, // Simpan hash, bukan password asli
-    role,
-    teams: [],
+    passwordHash,
+    role: role, // <-- Terapkan role di sini
+    teams: ['t1'], // <-- Otomatis masukkan ke tim 't1' (misal "Kelas 10")
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -70,7 +74,7 @@ router.post('/register', validateUser, async (req, res) => {
   global.users.push(newUser);
 
   res.status(201).json({
-    message: 'User created successfully',
+    message: `User created successfully${role === 'admin' ? ' as ADMIN' : ''}`,
     user: { id: newUser.id, name: newUser.name, email: newUser.email }
   });
 });

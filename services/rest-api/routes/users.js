@@ -1,6 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid'); // Kita masih butuh ini untuk ID baru jika ada
 const { validateUser, validateUserUpdate } = require('../middleware/validation');
+const { isAdmin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -76,48 +77,33 @@ router.get('/:id', (req, res) => {
 // Kita HAPUS rute 'router.post('/', ...)' dari file ini.
 
 // PUT /api/users/:id - Update user
-router.put('/:id', validateUserUpdate, (req, res) => {
+// ENDPOINT BARU: PUT /api/users/:id/role - Ubah role user (HANYA ADMIN)
+router.put('/:id/role', isAdmin, (req, res) => { // <-- PASANG 'isAdmin'
+  const { role } = req.body;
+  if (!role || (role !== 'admin' && role !== 'user')) {
+    return res.status(400).json({ error: "Invalid role. Must be 'admin' or 'user'." });
+  }
+
   if (!global.users) {
     return res.status(500).json({ error: 'User data not initialized' });
   }
 
   const userIndex = global.users.findIndex(u => u.id === req.params.id);
-  
   if (userIndex === -1) {
     return res.status(404).json({ error: 'User not found' });
   }
+
+  global.users[userIndex].role = role;
   
-  const { name, email, age, role } = req.body;
-  
-  // Cek duplikat email (jika email diubah)
-  if (email) {
-    const existingUser = global.users.find(u => u.email === email && u.id !== req.params.id);
-    if (existingUser) {
-      return res.status(409).json({ error: 'Email already exists' });
-    }
-  }
-  
-  const updatedUser = {
-    ...global.users[userIndex],
-    ...(name && { name }),
-    ...(email && { email }),
-    ...(age && { age }),
-    ...(role && { role }),
-    updatedAt: new Date().toISOString()
-  };
-  
-  global.users[userIndex] = updatedUser;
-  
-  // Hapus passwordHash sebelum mengirim
-  const { passwordHash, ...userWithoutPassword } = updatedUser;
+  const { passwordHash, ...userWithoutPassword } = global.users[userIndex];
   res.json({
-    message: 'User updated successfully',
+    message: 'User role updated successfully',
     user: userWithoutPassword
   });
 });
 
 // DELETE /api/users/:id - Delete user
-router.delete('/:id', (req, res) => {
+router.delete('/:id', isAdmin, (req, res) => {
   if (!global.users) {
     return res.status(500).json({ error: 'User data not initialized' });
   }

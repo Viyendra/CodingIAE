@@ -141,15 +141,28 @@ const resolvers = {
       return updatedPost;
     },
 
-    deletePost: (_, { id }) => {
+    deletePost: (_, { id }, context) => {
       const postIndex = posts.findIndex(post => post.id === id);
       if (postIndex === -1) {
         return false;
       }
-      comments = comments.filter(comment => comment.postId !== id);
-      posts.splice(postIndex, 1);
-      pubsub.publish('POST_DELETED', { postDeleted: id });
-      return true;
+      // === LOGIKA HAK AKSES BARU ===
+      const post = posts[postIndex];
+      
+      // Cek apakah user adalah 'admin' ATAU nama author post sama dengan nama user di token
+      if (context.userRole === 'admin' || post.author === context.userName) {
+        
+        // Oke, diizinkan menghapus
+        comments = comments.filter(comment => comment.postId !== id);
+        posts.splice(postIndex, 1);
+        pubsub.publish('POST_DELETED', { postDeleted: id });
+        return true;
+        
+      } else {
+        // Ditolak!
+        console.warn(`User ${context.userName} (Role: ${context.userRole}) mencoba menghapus post milik ${post.author} tanpa izin!`);
+        throw new Error('You are not authorized to delete this post.');
+      }
     },
 
     createComment: (_, { postId, content, author }, context) => {
@@ -211,8 +224,9 @@ async function startServer() {
       const userId = req.headers['x-user-id'] || '';
       const userName = req.headers['x-user-name'] || 'Guest';
       const userEmail = req.headers['x-user-email'] || '';
+      const userRole = req.headers['x-user-role'] || 'user';
       const userTeams = (req.headers['x-user-teams'] || '').split(',');
-      return { userId, userName, userEmail, userTeams, req };
+      return { userId, userName, userEmail, userRole, userTeams, req };
     },
     plugins: [
       {

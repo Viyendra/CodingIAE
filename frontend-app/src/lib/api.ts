@@ -47,4 +47,10 @@ export const userApi = {
   updateUser: (id: string, userData: { name?: string; email?: string; age?: number }) => 
     apiClient.put(`/api/users/${id}`, userData),
   deleteUser: (id: string) => apiClient.delete(`/api/users/${id}`),
+
+  // === TAMBAHAN BARU UNTUK ADMIN ===
+  // Memanggil PUT /api/users/:id/role
+  changeUserRole: (id: string, role: 'admin' | 'user') => 
+    apiClient.put(`/api/users/${id}/role`, { role }),
 };
+
