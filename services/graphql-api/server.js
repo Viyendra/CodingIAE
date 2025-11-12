@@ -4,10 +4,16 @@ const { PubSub } = require('graphql-subscriptions');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 
+// (Impor baru untuk perbaikan Subscription)
+const { createServer } = require('http');
+const { WebSocketServer } = require('ws');
+const { useServer } = require('graphql-ws/lib/use/ws');
+const { makeExecutableSchema } = require('@graphql-tools/schema');
+
 const app = express();
 const pubsub = new PubSub();
 
-// Enable CORS
+// Enable CORS (konfigurasi lama Anda)
 app.use(cors({
   origin: [
     'http://localhost:3000', // API Gateway
@@ -18,7 +24,7 @@ app.use(cors({
   credentials: true
 }));
 
-// In-memory data store (replace with real database in production)
+// === Database In-Memory ASLI (Posts/Comments) ===
 let posts = [
   {
     id: '1',
@@ -45,8 +51,9 @@ let comments = [
     createdAt: new Date().toISOString(),
   }
 ];
+// ===============================================
 
-// GraphQL type definitions
+// === Skema GraphQL ASLI (Type Definitions) ===
 const typeDefs = `
   type Post {
     id: ID!
@@ -87,7 +94,7 @@ const typeDefs = `
   }
 `;
 
-// GraphQL resolvers
+// === Resolvers ASLI (dengan integrasi 'context') ===
 const resolvers = {
   Query: {
     posts: () => posts,
@@ -100,17 +107,20 @@ const resolvers = {
   },
 
   Mutation: {
-    createPost: (_, { title, content, author }) => {
+    createPost: (_, { title, content, author }, context) => {
+      // Integrasi Keamanan: Gunakan nama user dari token
+      const postAuthor = context.userName || author; // Prioritaskan nama dari token
+      console.log(`User ${postAuthor} (ID: ${context.userId}) sedang membuat post.`);
+
       const newPost = {
         id: uuidv4(),
         title,
         content,
-        author,
+        author: postAuthor,
         createdAt: new Date().toISOString(),
       };
       posts.push(newPost);
       
-      // Publish to subscribers
       pubsub.publish('POST_ADDED', { postAdded: newPost });
       
       return newPost;
@@ -121,18 +131,13 @@ const resolvers = {
       if (postIndex === -1) {
         throw new Error('Post not found');
       }
-
       const updatedPost = {
         ...posts[postIndex],
         ...(title && { title }),
         ...(content && { content }),
       };
-
       posts[postIndex] = updatedPost;
-      
-      // Publish to subscribers
       pubsub.publish('POST_UPDATED', { postUpdated: updatedPost });
-      
       return updatedPost;
     },
 
@@ -141,38 +146,30 @@ const resolvers = {
       if (postIndex === -1) {
         return false;
       }
-
-      // Remove associated comments
       comments = comments.filter(comment => comment.postId !== id);
-      
-      // Remove post
       posts.splice(postIndex, 1);
-      
-      // Publish to subscribers
       pubsub.publish('POST_DELETED', { postDeleted: id });
-      
       return true;
     },
 
-    createComment: (_, { postId, content, author }) => {
+    createComment: (_, { postId, content, author }, context) => {
+      // Integrasi Keamanan: Gunakan nama user dari token
+      const commentAuthor = context.userName || author;
+      console.log(`User ${commentAuthor} (ID: ${context.userId}) sedang berkomentar.`);
+
       const post = posts.find(p => p.id === postId);
       if (!post) {
         throw new Error('Post not found');
       }
-
       const newComment = {
         id: uuidv4(),
         postId,
         content,
-        author,
+        author: commentAuthor,
         createdAt: new Date().toISOString(),
       };
-      
       comments.push(newComment);
-      
-      // Publish to subscribers
       pubsub.publish('COMMENT_ADDED', { commentAdded: newComment });
-      
       return newComment;
     },
 
@@ -181,7 +178,6 @@ const resolvers = {
       if (commentIndex === -1) {
         return false;
       }
-
       comments.splice(commentIndex, 1);
       return true;
     },
@@ -203,14 +199,20 @@ const resolvers = {
   },
 };
 
+// Buat skema yang bisa dieksekusi
+const schema = makeExecutableSchema({ typeDefs, resolvers });
+
 async function startServer() {
   // Create Apollo Server
   const server = new ApolloServer({
-    typeDefs,
-    resolvers,
+    schema, // Gunakan schema
     context: ({ req }) => {
-      // Add authentication logic here if needed
-      return { req };
+      // === INTEGRASI KEAMANAN (Tetap dipertahankan) ===
+      const userId = req.headers['x-user-id'] || '';
+      const userName = req.headers['x-user-name'] || 'Guest';
+      const userEmail = req.headers['x-user-email'] || '';
+      const userTeams = (req.headers['x-user-teams'] || '').split(',');
+      return { userId, userName, userEmail, userTeams, req };
     },
     plugins: [
       {
@@ -230,30 +232,25 @@ async function startServer() {
 
   const PORT = process.env.PORT || 4000;
   
-  const httpServer = app.listen(PORT, () => {
-    console.log(`🚀 GraphQL API Server running on port ${PORT}`);
-    console.log(`🔗 GraphQL endpoint: http://localhost:${PORT}${server.graphqlPath}`);
-    console.log(`📊 GraphQL Playground: http://localhost:${PORT}${server.graphqlPath}`);
-    console.log(`📡 Subscriptions ready`);
+  // === PERBAIKAN SUBSCRIPTION (Tetap dipertahankan) ===
+  const httpServer = createServer(app);
+  const wsServer = new WebSocketServer({
+    server: httpServer,
+    path: server.graphqlPath,
   });
-
-  // Setup subscriptions
-  server.installSubscriptionHandlers(httpServer);
-
-  // Graceful shutdown
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully');
-    httpServer.close(() => {
-      console.log('Process terminated');
-    });
+  useServer({ schema }, wsServer);
+  httpServer.listen(PORT, () => {
+    console.log(`🚀 Post/Comment Service (GraphQL) running on port ${PORT}`);
+    console.log(`GraphQL endpoint: http://localhost:${PORT}${server.graphqlPath}`);
+    console.log(`Subscriptions ready at ws://localhost:${PORT}${server.graphqlPath}`);
   });
 }
 
-// Health check endpoint
+// Health check endpoint (Update nama service)
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy',
-    service: 'graphql-api',
+    service: 'post-comment-graphql-api',
     timestamp: new Date().toISOString(),
     data: {
       posts: posts.length,
@@ -262,13 +259,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Error handling
+// ... (Error handling) ...
 app.use((err, req, res, next) => {
   console.error('GraphQL API Error:', err);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
-  });
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 startServer().catch(error => {
