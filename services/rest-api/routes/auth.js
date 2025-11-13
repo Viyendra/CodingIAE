@@ -28,8 +28,8 @@ if (!global.users) {
       name: 'Jane Smith',
       email: 'jane@example.com',
       age: 25,
-      role: 'user',
-      passwordHash: '$2a$10$f.bZ/F.N..e.3.i9A.crA.2.W.3.j.gqY.1.R.2.g.3.k.4', // Hash dummy
+      role: 'admin',
+      passwordHash: '$2a$10$.91iziEVWTK2toYSAX0rJ.gEzvFlJGfY/d0cL84W8pDbXT3vQYQAK', // Hash dummy
       teams: ['t1'],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
