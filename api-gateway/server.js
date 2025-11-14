@@ -83,7 +83,7 @@ app.use(async (req, res, next) => {
   }
 
   // Verifikasi token menggunakan Public Key
-  jwt.verify(token, PUBLIC_KEY, { algorithms: ['RS26'] }, (err, decoded) => {
+  jwt.verify(token, PUBLIC_KEY, { algorithms: ['RS256'] }, (err, decoded) => {
     if (err) {
       console.error('JWT Verify Error:', err.message);
       return res.status(401).json({ error: 'Unauthorized: Invalid token.' });
