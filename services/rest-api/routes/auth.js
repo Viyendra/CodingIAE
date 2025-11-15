@@ -14,10 +14,10 @@ if (!global.users) {
   global.users = [
     {
       id: '1',
-      name: 'user pengguna',
-      email: 'user@gmail.com',
+      name: 'user contributor',
+      email: 'contributor@gmail.com',
       age: 30,
-      role: 'user',
+      role: 'contributor',
       passwordHash: '$2a$10$.91iziEVWTK2toYSAX0rJ.gEzvFlJGfY/d0cL84W8pDbXT3vQYQAK', // Hash dummy
       teams: ['t1'],
       createdAt: new Date().toISOString(),
@@ -36,8 +36,8 @@ if (!global.users) {
     },
     {
       id: '3',
-      name: 'user contributor',
-      email: 'contributor@gmail.com',
+      name: 'user pengguna',
+      email: 'user@gmail.com',
       age: 30,
       role: 'user',
       passwordHash: '$2a$10$.91iziEVWTK2toYSAX0rJ.gEzvFlJGfY/d0cL84W8pDbXT3vQYQAK', // Hash dummy

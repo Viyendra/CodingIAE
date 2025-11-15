@@ -241,13 +241,26 @@ async function startServer() {
     schema, // Gunakan schema
     context: ({ req }) => {
       // === INTEGRASI KEAMANAN (Tetap dipertahankan) ===
+      // === INTEGRASI KEAMANAN (Perbaikan Pembacaan Role Header) ===
       const userId = req.headers['x-user-id'] || '';
       const userName = req.headers['x-user-name'] || 'Guest';
       const userEmail = req.headers['x-user-email'] || '';
-      const userRole = req.headers['x-user-role'] || 'user';
+      
+      // Ambil nilai mentah header 'x-user-role'
+      const userRoleRaw = req.headers['x-user-role'];
+
+      // Logika yang lebih aman: 
+      // 1. Cek apakah itu array (jika header terduplikasi), ambil elemen pertama.
+      // 2. Jika bukan, ambil nilai mentah.
+      // 3. Ubah ke huruf kecil dan default ke 'user' jika tetap kosong.
+      const userRole = (Array.isArray(userRoleRaw) ? userRoleRaw[0] : userRoleRaw)?.toLowerCase() || 'user';
+      
       const userTeams = (req.headers['x-user-teams'] || '').split(',');
-      return { userId, userName, userEmail, userRole, userTeams, req };
-    },
+
+      // Kirim pesan debug ke log Docker untuk verifikasi
+      console.log(`[AUTH-GQL] User: ${userName}, Role: ${userRole}`); 
+
+      return { userId, userName, userEmail, userTeams, userRole, req };},
     plugins: [
       {
         requestDidStart() {
