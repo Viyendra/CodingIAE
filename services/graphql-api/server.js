@@ -47,7 +47,7 @@ let comments = [
     id: '1',
     postId: '1',
     content: 'Great introduction to GraphQL!',
-    author: 'John Doe',
+    author: 'viyen admin',
     createdAt: new Date().toISOString(),
   }
 ];
@@ -91,6 +91,7 @@ const typeDefs = `
     commentAdded: Comment!
     postUpdated: Post!
     postDeleted: ID!
+    commentPosted: Comment!
   }
 `;
 
@@ -166,14 +167,22 @@ const resolvers = {
     },
 
     createComment: (_, { postId, content, author }, context) => {
-      // Integrasi Keamanan: Gunakan nama user dari token
       const commentAuthor = context.userName || author;
-      console.log(`User ${commentAuthor} (ID: ${context.userId}) sedang berkomentar.`);
 
       const post = posts.find(p => p.id === postId);
       if (!post) {
         throw new Error('Post not found');
       }
+
+      // === LOGIKA OTORISASI KOMENTAR BARU ===
+      // Post ID 1 (Welcome to GraphQL) hanya untuk admin/contributor
+      const allowedRoles = ['admin', 'contributor'];
+      if (postId === '1' && !allowedRoles.includes(context.userRole)) {
+        console.warn(`User ${context.userName} (Role: ${context.userRole}) DITOLAK berkomentar pada Post ID 1.`);
+        throw new Error('Anda tidak diizinkan berkomentar pada post ini. Role Admin atau Contributor diperlukan.');
+      }
+      // ======================================
+
       const newComment = {
         id: uuidv4(),
         postId,
@@ -182,7 +191,15 @@ const resolvers = {
         createdAt: new Date().toISOString(),
       };
       comments.push(newComment);
+      
       pubsub.publish('COMMENT_ADDED', { commentAdded: newComment });
+      
+      // === LOGIKA NOTIFIKASI REAL-TIME BARU ===
+      if (postId === '2') { // Hanya Post ID 2 (Real-time Updates) yang memicu notifikasi
+        pubsub.publish(POST_COMMENTED, { commentPosted: newComment });
+      }
+      // =======================================
+      
       return newComment;
     },
 
@@ -208,6 +225,9 @@ const resolvers = {
     },
     postDeleted: {
       subscribe: () => pubsub.asyncIterator(['POST_DELETED']),
+    },
+    commentPosted: {
+        subscribe: () => pubsub.asyncIterator([POST_COMMENTED]),
     },
   },
 };

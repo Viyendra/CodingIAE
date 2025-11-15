@@ -25,10 +25,21 @@ if (!global.users) {
     },
     {
       id: '2',
-      name: 'viyenadmin',
+      name: 'viyen admin',
       email: 'muhammadviyendra@gmail.com',
       age: 25,
       role: 'admin',
+      passwordHash: '$2a$10$.91iziEVWTK2toYSAX0rJ.gEzvFlJGfY/d0cL84W8pDbXT3vQYQAK', // Hash dummy
+      teams: ['t1'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: '3',
+      name: 'user contributor',
+      email: 'contributor@gmail.com',
+      age: 30,
+      role: 'user',
       passwordHash: '$2a$10$.91iziEVWTK2toYSAX0rJ.gEzvFlJGfY/d0cL84W8pDbXT3vQYQAK', // Hash dummy
       teams: ['t1'],
       createdAt: new Date().toISOString(),
@@ -37,23 +48,21 @@ if (!global.users) {
   ];
 }
 
-
 // Membaca private key untuk *membuat* token
 const privateKey = fs.readFileSync(path.join(__dirname, '../private.key'), 'utf8');
 
 // POST /api/auth/register - Registrasi user baru
-// POST /api/auth/register - Registrasi user baru
 router.post('/register', validateUser, async (req, res) => {
-  const { name, email, age, password } = req.body; //
+  const { name, email, age, password } = req.body; 
 
   if (global.users.find(u => u.email === email)) {
     return res.status(409).json({ error: 'Email already exists' });
   }
 
   // === LOGIKA ROLE BARU ===
-  // Cek apakah sudah ada admin di database 'global.users'
+  // User pertama setelah dummy akan menjadi 'admin' jika belum ada.
   const hasAdmin = global.users.some(u => u.role === 'admin');
-  const role = hasAdmin ? 'user' : 'admin'; // Jika belum ada admin, jadikan 'admin'. Jika sudah, jadikan 'user'.
+  const role = hasAdmin ? 'user' : 'admin'; 
   // =========================
 
   const salt = await bcrypt.genSalt(10);
@@ -65,8 +74,8 @@ router.post('/register', validateUser, async (req, res) => {
     email,
     age,
     passwordHash,
-    role: role, // <-- Terapkan role di sini
-    teams: ['t1'], // <-- Otomatis masukkan ke tim 't1' (misal "Kelas 10")
+    role: role, 
+    teams: ['t1'], // Otomatis masukkan ke tim 't1' (misal "Kelas 10")
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -100,8 +109,8 @@ router.post('/login', async (req, res) => {
     userId: user.id,
     email: user.email,
     name: user.name,
-    role: user.role,
-    teams: user.teams // Sertakan tim user di dalam token
+    role: user.role, // <-- Role dikirim
+    teams: user.teams 
   };
 
   // Buat token menggunakan private key, berlaku 1 jam
@@ -117,10 +126,9 @@ router.post('/login', async (req, res) => {
   });
 });
 
-// GET /api/auth/public-key - Endpoint untuk API Gateway (nanti)
+// GET /api/auth/public-key - Endpoint untuk API Gateway
 router.get('/public-key', (req, res) => {
   try {
-    // Baca file public key yang sudah kita buat
     const publicKey = fs.readFileSync(path.join(__dirname, '../public.key'), 'utf8');
     res.type('text/plain').send(publicKey);
   } catch (err) {
